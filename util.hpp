@@ -1,0 +1,181 @@
+/**
+ * Copyright 2025, Aleksandar Colic
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+#pragma once
+
+#ifndef STL_UTIL_HPP
+#define STL_UTIL_HPP
+
+#include <chrono>
+#include <cstdint>
+#include <fstream>
+#include <iostream>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "types.hpp"
+
+// clang-format off
+#define NO_OP do {} while (0) // NOLINT
+// clang-format on
+
+/**
+ * Defining all tracy macros with T prefix, to avoid checking every time if TRACY_ENABLE is
+ * defined and including Tracy.hpp in every file that needs instrumentation. Just put T prefix
+ * (TZoneScoped for example) and profile...
+ * Please define all other macros that you wish to use and are not defined here.
+ */
+#ifdef TRACY_ENABLE
+#include "tracy/Tracy.hpp"
+#define TZoneScoped ZoneScoped
+#define TTracyMessageL(x) TracyMessageL(x)
+#else
+#define TZoneScoped NO_OP
+#define TTracyMessageL(x) NO_OP
+#endif
+
+#define stringify2(x) #x           // NOLINT
+#define stringify(x) stringify2(x) // NOLINT
+
+namespace stl {
+
+#ifdef __cpp_lib_hardware_interference_size
+constexpr std::size_t cache_line_size = std::hardware_destructive_interference_size;
+#else
+constexpr std::size_t cache_line_size = 64;
+#endif
+
+using namespace std::chrono;
+using namespace std::chrono_literals;
+using Clock = steady_clock;
+using Time_point = std::chrono::time_point<Clock>;
+
+inline Time_point now() noexcept
+{
+    return Clock::now();
+}
+
+/**
+ * Stopwatch that uses steady_clock for time measurement.
+ * You can pass time Unit for default formatting if print is specified. Default is milliseconds.
+ * To measure specific part of code, just put it in a scope and create Stopwatch
+ * at the beggining. For example:
+ *
+ * ... Code not measured ...
+ *
+ * {
+ *     Stopwatch sw;
+ *     ... Code that we want to measure ...
+ *
+ *     ... Measurement stops here.
+ * }
+ *
+ * ... Code not measured ...
+ */
+template<bool print = true, typename Unit = milliseconds>
+class Stopwatch {
+public:
+    explicit Stopwatch(std::string name = "Stopwatch") noexcept
+        : m_name{std::move(name)}
+        , m_start{now()}
+    {
+    }
+
+    ~Stopwatch() noexcept
+    {
+        if constexpr (print) {
+            auto out = elapsed_units().count();
+            std::cout << m_name << " elapsed time: " << out << " " << unit_name() << "\n";
+        }
+    }
+
+    Stopwatch(const Stopwatch& rhs) = delete;
+    Stopwatch& operator=(const Stopwatch& rhs) = delete;
+    Stopwatch(Stopwatch&& rhs) noexcept = delete;
+    Stopwatch& operator=(Stopwatch&& rhs) = delete;
+
+    void restart() noexcept { m_start = now(); }
+
+    [[nodiscard]] auto elapsed() const noexcept { return now() - m_start; }
+
+    [[nodiscard]] auto elapsed_units() const noexcept { return duration_cast<Unit>(elapsed()); }
+
+    [[nodiscard]] std::string unit_name() const noexcept
+    {
+        // clang-format off
+        if      constexpr (std::is_same_v<Unit, hours>)        return "hour(s)";
+        else if constexpr (std::is_same_v<Unit, minutes>)      return "minute(s)";
+        else if constexpr (std::is_same_v<Unit, seconds>)      return "second(s)";
+        else if constexpr (std::is_same_v<Unit, milliseconds>) return "millisecond(s)";
+        else if constexpr (std::is_same_v<Unit, microseconds>) return "microsecond(s)";
+        else if constexpr (std::is_same_v<Unit, nanoseconds>)  return "nanosecond(s)";
+        else                                                   return "unknown unit";
+        // clang-format on
+    }
+
+private:
+    std::string m_name;
+    Clock::time_point m_start;
+};
+
+/**
+ * Random number generator.
+ * Taken from stockfish.
+ */
+class PRNG {
+public:
+    explicit PRNG(u64 seed = u64(now().time_since_epoch().count())) noexcept : m_seed{seed} {}
+
+    template<typename T>
+    T rand() noexcept
+    {
+        return T(rand64());
+    }
+
+private:
+    u64 rand64() noexcept
+    {
+        m_seed ^= m_seed >> 12, m_seed ^= m_seed << 25, m_seed ^= m_seed >> 27; // NOLINT
+        return m_seed * 2685821657736338717LL;                                  // NOLINT
+    }
+
+    u64 m_seed;
+};
+
+/**
+ * Random number generator.
+ */
+template<typename T = uint64_t>
+T random() noexcept
+{
+    return PRNG{}.rand<T>();
+}
+
+inline std::string file_to_string(const std::string& path)
+{
+    std::ifstream f{path, std::ios_base::binary};
+    return std::string{std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
+}
+
+inline std::vector<char> file_to_vector(const std::string& path)
+{
+    std::ifstream f{path, std::ios_base::binary};
+    return std::vector<char>{std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
+}
+
+} // namespace stl
+
+#endif // STL_UTIL_HPP
