@@ -50,8 +50,6 @@ int main(int argc, char** argv)
     list.push_back(&a4);
     list.push_back(&a5);
 
-    list.remove(&a3);
-
     usize c = 0;
     for (const auto& node : list)
         std::cout << (c++ ? ", " : "") << node.m_s;

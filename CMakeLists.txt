@@ -1,12 +1,9 @@
 # Usage:
 # Create initial cmake build folder: cmake [-G Ninja] -B build -DCMAKE_BUILD_TYPE=[Debug/Release] -DCMAKE_CXX_COMPILER=clang++-20 -DCMAKE_C_COMPILER=clang-20
 # Create build with desired config: cmake --build build
-# On linux, if you want to use fast I/O, you have to use makefiles for build, since lib_io_uring is build that way, and I am not patient enough to make it build with ninja. Also, you need to set UMS_BUILD_URING
 #
-# Clean command: cmake --build build --target clean
-
-# If you want to play around with scheduler, you can just enable UMS_BUILD_MAIN which builds main.cpp file.
-
+# If you want to play around with stl, you can just enable STL_BUILD_MAIN which builds main.cpp file.
+#
 cmake_minimum_required(VERSION 3.10)
 project(stl
         DESCRIPTION "STL project is an extension to c++ STL library."
@@ -29,7 +26,7 @@ include(cmake/sanitizers.cmake)
 include(cmake/compiler_options.cmake)
 include(cmake/profilers.cmake)
 
-set(HPP_FILES types.hpp util.hpp intrusive_list.hpp small_string.hpp ptr_tag.hpp array_map.hpp)
+set(HPP_FILES types.hpp util.hpp intrusive_list.hpp small_string.hpp ptr_tag.hpp array_map.hpp art.hpp ast.hpp)
 
 OPTION(STL_BUILD_MAIN "If set, builds main.cpp for manual scheduler testing." OFF)
 if (STL_BUILD_MAIN)
