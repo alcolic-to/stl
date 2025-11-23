@@ -27,6 +27,7 @@ function(add_stl_test TEST_FILE)
     add_executable(${TEST_NAME} ${TEST_FILE})
     target_link_libraries(${TEST_NAME} ${STL_LIB} gtest_main)
     target_include_directories(${TEST_NAME} PUBLIC ${CMAKE_SOURCE_DIR})
+    target_compile_definitions(${TEST_NAME} PRIVATE TEST_ROOT="${CMAKE_SOURCE_DIR}/test")
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
 endfunction()
 
