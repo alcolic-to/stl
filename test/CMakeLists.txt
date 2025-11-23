@@ -32,3 +32,4 @@ endfunction()
 
 add_stl_test("test_intrusive_list.cpp")
 add_stl_test("test_small_string.cpp")
+add_stl_test("test_array_map.cpp")
