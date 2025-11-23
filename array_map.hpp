@@ -18,7 +18,6 @@
 #ifndef STL_ARRAY_MAP_H
 #define STL_ARRAY_MAP_H
 
-#include <algorithm>
 #include <format>
 #include <stdexcept>
 #include <vector>

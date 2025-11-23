@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#ifndef STL_PTR_TAG_H
-#define STL_PTR_TAG_H
+#ifndef STL_PTR_TAG_HPP
+#define STL_PTR_TAG_HPP
 
 #include <bit>
 #include <cassert>
@@ -56,4 +56,4 @@ constexpr void* set_tag(const void* ptr, uptr tag) noexcept
 
 } // namespace stl
 
-#endif // STL_PTR_TAG_H
+#endif // STL_PTR_TAG_HPP

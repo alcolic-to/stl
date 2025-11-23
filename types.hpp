@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#ifndef STL_TYPES_H
-#define STL_TYPES_H
+#ifndef STL_TYPES_HPP
+#define STL_TYPES_HPP
 
 #include <cmath>
 #include <cstddef>
@@ -43,4 +43,4 @@ using uptr = std::uintptr_t;
 
 } // namespace stl
 
-#endif // STL_TYPES_H
+#endif // STL_TYPES_HPP
