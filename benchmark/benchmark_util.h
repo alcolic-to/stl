@@ -9,9 +9,9 @@
 #include <cstdint>
 #include <vector>
 
-#include "util.h"
+#include "util.hpp"
 
-using namespace ums;
+namespace stl {
 
 // Since we don't support dynamic caches detection yet, we will simulte some values.
 //
@@ -52,6 +52,8 @@ void hard_work(auto dur, bool memory_access = false)
             ;
     }
 }
+
+} // namespace stl
 
 #endif // BENCHMARK_UTIL_H
 
