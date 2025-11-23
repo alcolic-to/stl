@@ -29,7 +29,7 @@ include(cmake/sanitizers.cmake)
 include(cmake/compiler_options.cmake)
 include(cmake/profilers.cmake)
 
-set(HPP_FILES types.hpp util.hpp intrusive_list.hpp)
+set(HPP_FILES types.hpp util.hpp intrusive_list.hpp small_string.hpp ptr_tag.hpp)
 
 OPTION(STL_BUILD_MAIN "If set, builds main.cpp for manual scheduler testing." OFF)
 if (STL_BUILD_MAIN)
