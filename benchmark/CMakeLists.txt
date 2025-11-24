@@ -29,3 +29,4 @@ function(add_stl_benchmark BENCHMARK_FILE)
 endfunction()
 
 add_stl_benchmark("bm_containers.cpp")
+add_stl_benchmark("bm_intrusive_list.cpp")
