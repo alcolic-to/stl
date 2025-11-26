@@ -47,9 +47,6 @@
 #define TTracyMessageL(x) NO_OP
 #endif
 
-#define stringify2(x) #x           // NOLINT
-#define stringify(x) stringify2(x) // NOLINT
-
 namespace stl {
 
 #ifdef __cpp_lib_hardware_interference_size
@@ -57,6 +54,46 @@ constexpr std::size_t cache_line_size = std::hardware_destructive_interference_s
 #else
 constexpr std::size_t cache_line_size = 64;
 #endif
+
+/**
+ * Taken from google benchmark.
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define ALWAYS_INLINE __attribute__((always_inline))
+#elif defined(_MSC_VER) && !defined(__clang__)
+#define ALWAYS_INLINE __forceinline
+#define __func__ __FUNCTION__
+#else
+#define ALWAYS_INLINE
+#endif
+
+/**
+ * Taken from google benchmark.
+ */
+template<class Tp>
+inline ALWAYS_INLINE void dont_optimize(Tp&& value) // NOLINT
+{
+#if defined(__clang__)
+    asm volatile("" : "+r,m"(value) : : "memory"); // NOLINT
+#else
+    asm volatile("" : "+m,r"(value) : : "memory"); // NOLINT
+#endif
+}
+
+/**
+ * https://en.cppreference.com/w/cpp/utility/unreachable.html
+ */
+[[noreturn]] inline void unreachable()
+{
+    // Uses compiler specific extensions if possible.
+    // Even if no extension is used, undefined behavior is still raised by
+    // an empty function body and the noreturn attribute.
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+    __assume(false);
+#else // GCC, Clang
+    __builtin_unreachable();
+#endif
+}
 
 using namespace std::chrono;
 using namespace std::chrono_literals;

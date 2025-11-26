@@ -44,11 +44,11 @@ int main(int argc, char** argv)
 
     IList<A, offsetof(A, m_node)> list;
 
-    list.push_back(&a1);
-    list.push_back(&a2);
-    list.push_back(&a3);
-    list.push_back(&a4);
-    list.push_back(&a5);
+    list.push_back(a1);
+    list.push_back(a2);
+    list.push_back(a3);
+    list.push_back(a4);
+    list.push_back(a5);
 
     usize c = 0;
     for (const auto& node : list)
