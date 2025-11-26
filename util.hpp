@@ -164,12 +164,83 @@ T random() noexcept
     return PRNG{}.rand<T>();
 }
 
+/**
+ * Splits string on provided delimiter.
+ * In first pass we determine how many entries would resulting vector have, and in second, we
+ * emplace results.
+ */
+template<class Delim>
+inline std::vector<std::string> string_split(const std::string& str, const Delim& delim)
+{
+    if (str.empty())
+        return {""};
+
+    usize delim_len = 0;
+    using DelimType = std::remove_cv_t<std::remove_reference_t<Delim>>;
+    if constexpr (std::is_same_v<DelimType, char>)
+        delim_len = 1;
+    else if constexpr (std::is_same_v<DelimType, char*> || std::is_array_v<DelimType>)
+        delim_len = std::strlen(delim);
+    else if constexpr (std::is_same_v<DelimType, std::string> ||
+                       std::is_same_v<DelimType, std::string_view>)
+        delim_len = delim.size();
+    else
+        static_assert(false, "Invalid delimiter type.");
+
+    if (delim_len == 0)
+        return {str};
+
+    usize token_count = 1;
+    for (usize pos = 0; (pos = str.find(delim, pos)) != std::string::npos; pos += delim_len)
+        ++token_count;
+
+    std::vector<std::string> tokens;
+    tokens.reserve(token_count);
+
+    usize start = 0;
+    usize end = str.find(delim);
+
+    while (end != std::string::npos) {
+        tokens.emplace_back(str, start, end - start);
+        start = end + delim_len;
+        end = str.find(delim, start);
+    }
+
+    tokens.emplace_back(str, start);
+    return tokens;
+}
+
+/**
+ * Trims all left spaces from string.
+ */
+inline void trim_left(std::string& s)
+{
+    s.erase(s.begin(),
+            std::ranges::find_if_not(s.begin(), s.end(), [](u8 ch) { return std::isspace(ch); }));
+}
+
+/**
+ * Trims all right spaces from string.
+ */
+inline void trim_right(std::string& s)
+{
+    s.erase(std::ranges::find_if_not(s.rbegin(), s.rend(), [](u8 ch) { return std::isspace(ch); })
+                .base(),
+            s.end());
+}
+
+/**
+ * Reads file from provided path to string.
+ */
 inline std::string file_to_string(const std::string& path)
 {
     std::ifstream f{path, std::ios_base::binary};
     return std::string{std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
 }
 
+/**
+ * Reads file from provided path to vector of chars.
+ */
 inline std::vector<char> file_to_vector(const std::string& path)
 {
     std::ifstream f{path, std::ios_base::binary};
