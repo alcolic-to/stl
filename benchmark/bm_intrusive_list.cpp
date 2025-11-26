@@ -35,7 +35,7 @@ static void BM_list_push_back(benchmark::State& state)
         benchmark::ClobberMemory();
     }
 
-    usize c = 0;
+    [[maybe_unused]] usize c = 0;
     for (const auto& it : list)
         c += it->m_value;
 
@@ -59,7 +59,7 @@ static void BM_deque_push_back(benchmark::State& state)
         benchmark::ClobberMemory();
     }
 
-    usize c = 0;
+    [[maybe_unused]] usize c = 0;
     for (const auto& it : deque)
         c += it->m_value;
 
@@ -79,11 +79,11 @@ static void BM_intrusive_list_push_back(benchmark::State& state)
 
     for (auto _ : state) {
         for (int i = 0; i < state.range(0); ++i)
-            list.push_back(&data[i]);
+            list.push_back(data[i]);
         benchmark::ClobberMemory();
     }
 
-    usize c = 0;
+    [[maybe_unused]] usize c = 0;
     for (const auto& it : list)
         c += it.m_value;
 

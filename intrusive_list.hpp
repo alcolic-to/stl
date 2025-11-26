@@ -19,6 +19,7 @@
 #define STL_INTRUSIVE_LIST_HPP
 
 #include <bit>
+#include <cassert>
 
 #include "types.hpp"
 
@@ -37,8 +38,8 @@ struct INode {
 
 /**
  * Intrusive list.
- * Data structure that holds pointers to the first and the last elements of the list.
- * Class T must have a data member INode which we will use as our list links.
+ * Non owning data structure that holds pointers to the first and the last elements of the list.
+ * Class T must have a data member INode which will be used as list link.
  * User must provide offset to the INode when creating list.
  * For example:
  *
@@ -53,6 +54,8 @@ struct INode {
  * ```
  *
  * It is user's responsibility to manage memory for the elements.
+ * Note that insert/delete will modify node link, hence element must be passed by non-const
+ * reference.
  */
 template<class T, size_t inode_offset>
 class IList {
@@ -61,83 +64,92 @@ class IList {
 public:
     IList() noexcept = default;
 
-    void push_back(T* element) noexcept
+    void push_back(T& element) noexcept
     {
-        if (!element)
-            return;
-
-        INode* node = node_from_data(element);
-        node->m_next = nullptr;
-        node->m_prev = m_tail;
+        INode& node = node_from_data(element);
+        node.m_next = nullptr;
+        node.m_prev = m_tail;
 
         if (m_tail)
-            m_tail->m_next = node;
+            m_tail->m_next = &node;
         else
-            m_head = node;
+            m_head = &node;
 
-        m_tail = node;
+        m_tail = &node;
         ++m_size;
     }
 
-    void push_front(T* element) noexcept
+    void push_front(T& element) noexcept
     {
-        if (!element)
-            return;
-
-        INode* node = node_from_data(element);
-        node->m_prev = nullptr;
-        node->m_next = m_head;
+        INode& node = node_from_data(element);
+        node.m_prev = nullptr;
+        node.m_next = m_head;
 
         if (m_head)
-            m_head->m_prev = node;
+            m_head->m_prev = &node;
         else
-            m_tail = node;
+            m_tail = &node;
 
-        m_head = node;
+        m_head = &node;
         ++m_size;
     }
 
-    T* pop_front() noexcept { return m_head == nullptr ? nullptr : data_from_node(remove(m_head)); }
-
-    T* pop_back() noexcept { return m_tail == nullptr ? nullptr : data_from_node(remove(m_tail)); }
-
-    T* remove(T* element) noexcept
+    T& pop_front() noexcept
     {
-        if (!element)
-            return nullptr;
-
-        return data_from_node(remove(node_from_data(element)));
+        assert(m_head != nullptr);
+        return data_from_node(remove(*m_head));
     }
 
-    INode* remove(INode* node) noexcept
+    T& pop_back() noexcept
     {
-        if (!node)
-            return nullptr;
+        assert(m_tail != nullptr);
+        return data_from_node(remove(*m_tail));
+    }
 
-        if (node->m_prev)
-            node->m_prev->m_next = node->m_next;
+    T& remove(T& element) noexcept { return data_from_node(remove(node_from_data(element))); }
+
+    INode& remove(INode& node) noexcept
+    {
+        if (node.m_prev)
+            node.m_prev->m_next = node.m_next;
         else
-            m_head = node->m_next;
+            m_head = node.m_next;
 
-        if (node->m_next)
-            node->m_next->m_prev = node->m_prev;
+        if (node.m_next)
+            node.m_next->m_prev = node.m_prev;
         else
-            m_tail = node->m_prev;
+            m_tail = node.m_prev;
 
-        node->m_next = nullptr;
-        node->m_prev = nullptr;
+        node.m_next = nullptr;
+        node.m_prev = nullptr;
         --m_size;
 
         return node;
     }
 
-    T* front() noexcept { return m_head ? data_from_node(m_head) : nullptr; }
+    T& front() noexcept
+    {
+        assert(m_head != nullptr);
+        return data_from_node(*m_head);
+    }
 
-    const T* front() const noexcept { return m_head ? data_from_node(m_head) : nullptr; }
+    const T& front() const noexcept
+    {
+        assert(m_head != nullptr);
+        return data_from_node(*m_head);
+    }
 
-    T* back() noexcept { return m_tail ? data_from_node(m_tail) : nullptr; }
+    T& back() noexcept
+    {
+        assert(m_tail != nullptr);
+        return data_from_node(*m_tail);
+    }
 
-    const T* back() const noexcept { return m_tail ? data_from_node(m_tail) : nullptr; }
+    const T& back() const noexcept
+    {
+        assert(m_tail != nullptr);
+        return data_from_node(*m_tail);
+    }
 
     [[nodiscard]] bool empty() const noexcept { return size() == 0; }
 
@@ -147,14 +159,21 @@ public:
     public:
         explicit iterator(INode* node) : m_node(node) {}
 
-        T& operator*() noexcept { return *data_from_node(m_node); }
+        T& operator*() noexcept { return data_from_node(*m_node); }
 
-        T* operator->() noexcept { return data_from_node(m_node); }
+        T* operator->() noexcept { return &data_from_node(*m_node); }
 
         iterator& operator++() noexcept
         {
             m_node = m_node->m_next;
             return *this;
+        }
+
+        iterator operator++(int) noexcept
+        {
+            const_iterator it{*this};
+            m_node = m_node->m_next;
+            return it;
         }
 
         bool operator==(const iterator& other) const noexcept { return m_node == other.m_node; }
@@ -170,14 +189,21 @@ public:
 
         const_iterator(const iterator& it) noexcept : m_node(it.m_node) {} // NOLINT
 
-        const T& operator*() const noexcept { return *data_from_node(m_node); }
+        const T& operator*() const noexcept { return data_from_node(*m_node); }
 
-        const T* operator->() const noexcept { return data_from_node(m_node); }
+        const T* operator->() const noexcept { return &data_from_node(*m_node); }
 
         const_iterator& operator++() noexcept
         {
             m_node = m_node->m_next;
             return *this;
+        }
+
+        const_iterator operator++(int) noexcept
+        {
+            const_iterator it{*this};
+            m_node = m_node->m_next;
+            return it;
         }
 
         bool operator==(const const_iterator& other) const noexcept
@@ -208,30 +234,30 @@ public:
             return end();
 
         iterator next{it.m_node->m_next};
-        remove(it.m_node);
+        remove(*it.m_node);
 
         return next;
     }
 
 private:
-    static T* data_from_node(INode* node) noexcept
+    static T& data_from_node(INode& node) noexcept
     {
-        return std::bit_cast<T*>(std::bit_cast<u8*>(node) - inode_offset);
+        return *std::bit_cast<T*>(std::bit_cast<u8*>(&node) - inode_offset);
     }
 
-    static const T* data_from_node(const INode* node) noexcept
+    static const T& data_from_node(const INode& node) noexcept
     {
-        return std::bit_cast<const T*>(std::bit_cast<const u8*>(node) - inode_offset);
+        return *std::bit_cast<const T*>(std::bit_cast<const u8*>(&node) - inode_offset);
     }
 
-    static INode* node_from_data(T* data) noexcept
+    static INode& node_from_data(T& data) noexcept
     {
-        return std::bit_cast<INode*>(std::bit_cast<u8*>(data) + inode_offset);
+        return *std::bit_cast<INode*>(std::bit_cast<u8*>(&data) + inode_offset);
     }
 
-    static const INode* node_from_data(const T* data) noexcept
+    static const INode& node_from_data(const T& data) noexcept
     {
-        return std::bit_cast<const INode*>(std::bit_cast<const u8*>(data) + inode_offset);
+        return *std::bit_cast<const INode*>(std::bit_cast<const u8*>(&data) + inode_offset);
     }
 
     /*
