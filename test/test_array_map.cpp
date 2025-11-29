@@ -1,5 +1,7 @@
+#include <algorithm>
 #include <cstddef>
 #include <gtest/gtest.h>
+#include <stdexcept>
 
 #include "array_map.hpp"
 
@@ -221,6 +223,80 @@ TEST(array_map_tests, types_test)
 
     for (const auto& s : arr)
         std::cout << s << "\n";
+}
+
+TEST(array_map_tests, delete_test)
+{
+    ArrayMap<std::string> arr;
+
+    arr.insert(0, "I am 0 entry.");
+    arr.insert(1, "I am 1 entry.");
+    arr.insert(2, "I am 2 entry.");
+    arr.insert(3, "I am 3 entry.");
+    arr.insert(4, "I am 4 entry.");
+
+    arr.erase(3);
+    arr.insert(3, "I am 3 entry.");
+
+    ASSERT_TRUE(arr.contains(3));
+
+    auto it = std::ranges::find(arr, "I am 3 entry.");
+    arr.erase(it);
+
+    ASSERT_TRUE(!arr.contains(3));
+
+    ASSERT_TRUE(arr[0] == "I am 0 entry.");
+    ASSERT_TRUE(arr[1] == "I am 1 entry.");
+    ASSERT_TRUE(arr[2] == "I am 2 entry.");
+    ASSERT_TRUE(arr[4] == "I am 4 entry.");
+
+    arr.insert(3, "I am 3 entry.");
+
+    ASSERT_TRUE(arr[0] == "I am 0 entry.");
+    ASSERT_TRUE(arr[1] == "I am 1 entry.");
+    ASSERT_TRUE(arr[2] == "I am 2 entry.");
+    ASSERT_TRUE(arr[3] == "I am 3 entry.");
+    ASSERT_TRUE(arr[4] == "I am 4 entry.");
+
+    arr.erase_on_value("I am 3 entry.");
+
+    ASSERT_TRUE(!arr.contains(3));
+
+    ASSERT_TRUE(arr[0] == "I am 0 entry.");
+    ASSERT_TRUE(arr[1] == "I am 1 entry.");
+    ASSERT_TRUE(arr[2] == "I am 2 entry.");
+    ASSERT_TRUE(arr[4] == "I am 4 entry.");
+
+    arr.erase_on_value("I am 4 entry.");
+
+    ASSERT_TRUE(!arr.contains(4));
+
+    ASSERT_TRUE(arr[0] == "I am 0 entry.");
+    ASSERT_TRUE(arr[1] == "I am 1 entry.");
+    ASSERT_TRUE(arr[2] == "I am 2 entry.");
+
+    arr.erase_on_value("I am 0 entry.");
+
+    ASSERT_TRUE(!arr.contains(0));
+
+    ASSERT_TRUE(arr[1] == "I am 1 entry.");
+    ASSERT_TRUE(arr[2] == "I am 2 entry.");
+
+    arr.erase_on_value("I am 1 entry.");
+
+    ASSERT_TRUE(!arr.contains(1));
+    ASSERT_TRUE(arr[2] == "I am 2 entry.");
+
+    arr.erase_on_value("I am 2 entry.");
+
+    ASSERT_TRUE(!arr.contains(2));
+
+    ASSERT_TRUE(arr.empty());
+
+    ASSERT_THROW(arr.erase_on_value("I am 0 entry."), std::runtime_error);
+    ASSERT_THROW(arr.erase_on_value("Some string."), std::runtime_error);
+    ASSERT_THROW(arr.erase(arr.begin()), std::runtime_error);
+    ASSERT_THROW(arr.erase(arr.end()), std::runtime_error);
 }
 
 // NOLINTEND

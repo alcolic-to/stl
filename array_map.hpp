@@ -80,6 +80,28 @@ public:
         --m_size;
     }
 
+    /**
+     * Removes item from map on provided data iterator position.
+     * It takes key from back indexes based on provided iterator offset.
+     */
+    void erase(std::vector<T>::iterator it)
+    {
+        usize offset = it - m_data.begin();
+        if (offset >= m_data.size())
+            throw std::runtime_error{"Invalid iterator in erase."};
+
+        erase(m_back_idxs[offset]);
+    }
+
+    /**
+     * Removes item from map with provided value.
+     */
+    void erase_on_value(const T& value)
+    {
+        auto it = std::find(m_data.begin(), m_data.end(), value);
+        erase(it);
+    }
+
     T& operator[](const usize key)
     {
         if (!contains(key))
@@ -104,6 +126,14 @@ public:
     [[nodiscard]] usize size() const noexcept { return m_size; }
 
     [[nodiscard]] bool empty() const noexcept { return m_size == 0; }
+
+    const T& front() const noexcept { return m_data.front(); }
+
+    T& front() noexcept { return m_data.front(); }
+
+    const T& back() const noexcept { return m_data.back(); }
+
+    T& back() noexcept { return m_data.back(); }
 
     /**
      * Iterators.
