@@ -15,9 +15,9 @@ namespace stl {
 
 // Since we don't support dynamic caches detection yet, we will simulte some values.
 //
-constexpr uint64_t L1_size = 48 * 1024;        // 48 KiB
-constexpr uint64_t L2_size = 2 * 1024 * 1024;  // 2  MiB
-constexpr uint64_t L3_size = 24 * 1024 * 1024; // 24 MiB
+constexpr u64 L1_size = 48 * 1024;        // 48 KiB
+constexpr u64 L2_size = 2 * 1024 * 1024;  // 2  MiB
+constexpr u64 L3_size = 24 * 1024 * 1024; // 24 MiB
 
 // Clears caches (replaces with random data) by forcing access to heap memory and
 // moving it to caches.
