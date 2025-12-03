@@ -138,8 +138,8 @@ public:
     using Leaf = Leaf<T>;
 
 private:
-    static constexpr uintptr_t node_tag = 0;
-    static constexpr uintptr_t leaf_tag = 1;
+    static constexpr uptr node_tag = 0;
+    static constexpr uptr leaf_tag = 1;
     static_assert(leaf_tag <= tag_bits);
 
 public:

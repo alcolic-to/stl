@@ -57,7 +57,7 @@ struct INode {
  * Note that insert/delete will modify node link, hence element must be passed by non-const
  * reference.
  */
-template<class T, size_t inode_offset>
+template<class T, usize inode_offset>
 class IList {
     static_assert(inode_offset <= sizeof(T) - sizeof(INode));
 

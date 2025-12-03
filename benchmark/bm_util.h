@@ -22,9 +22,9 @@ constexpr u64 L3_size = 24 * 1024 * 1024; // 24 MiB
 // Clears caches (replaces with random data) by forcing access to heap memory and
 // moving it to caches.
 //
-void clear_caches(size_t size = L1_size + L2_size + L3_size)
+void clear_caches(usize size = L1_size + L2_size + L3_size)
 {
-    std::vector<std::atomic<size_t>> v(size / sizeof(size_t));
+    std::vector<std::atomic<usize>> v(size / sizeof(usize));
     for (auto& b : v) [[maybe_unused]]
         auto tmp = b.load(std::memory_order_acquire);
 }
@@ -36,8 +36,8 @@ void hard_work(auto dur, bool memory_access = false)
     Stopwatch<false> s;
 
     if (memory_access) {
-        constexpr size_t caches_size = L1_size + L2_size + L3_size;
-        std::vector<std::atomic<size_t>> v(caches_size / sizeof(size_t));
+        constexpr usize caches_size = L1_size + L2_size + L3_size;
+        std::vector<std::atomic<usize>> v(caches_size / sizeof(usize));
 
         while (true) {
             for (auto& b : v) {

@@ -312,9 +312,9 @@ public:
     using KeyRef = KeyRef<T>;
 
 private:
-    static constexpr uintptr_t node_tag = 0;
-    static constexpr uintptr_t leaf_tag = 1;
-    static constexpr uintptr_t ref_tag = 2;
+    static constexpr uptr node_tag = 0;
+    static constexpr uptr leaf_tag = 1;
+    static constexpr uptr ref_tag = 2;
     static_assert(ref_tag <= tag_bits);
 
 public:
