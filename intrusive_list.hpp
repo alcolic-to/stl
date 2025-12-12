@@ -31,35 +31,36 @@ namespace stl {
  * Intrusive list node.
  * It holds pointers to next and previous elements in a list.
  */
+template<class T>
 struct INode {
-    INode* m_prev = nullptr;
-    INode* m_next = nullptr;
+    INode<T>* m_prev = nullptr;
+    INode<T>* m_next = nullptr;
 };
 
 /**
  * Intrusive list.
  * Non owning data structure that holds pointers to the first and the last elements of the list.
  * Class T must have a data member INode which will be used as list link.
- * User must provide offset to the INode when creating list.
+ * User must provide INode pointer member when creating list.
  * For example:
  *
  * ```
  * class TestData {
  * public:
  *   int a = 0;
- *   INode m_node; // node link.
+ *   INode<TestData> m_node; // node link.
  * };
  *
- * IList<TestData, offsetof(TestData, m_node)> list;
+ * IList<TestData, &TestData::m_node)> list;
  * ```
  *
  * It is user's responsibility to manage memory for the elements.
  * Note that insert/delete will modify node link, hence element must be passed by non-const
  * reference.
  */
-template<class T, usize inode_offset>
+template<class T, INode<T> T::* node_ptr>
 class IList {
-    static_assert(inode_offset <= sizeof(T) - sizeof(INode));
+    using INode = INode<T>;
 
 public:
     IList() noexcept = default;
@@ -240,24 +241,30 @@ public:
     }
 
 private:
+    static constexpr ptrdiff inode_byte_offset() noexcept
+    {
+        return std::bit_cast<ptrdiff>(&(static_cast<T*>(nullptr)->*node_ptr));
+    }
+
     static T& data_from_node(INode& node) noexcept
     {
-        return *std::bit_cast<T*>(std::bit_cast<u8*>(&node) - inode_offset);
+        return *std::bit_cast<T*>(std::bit_cast<byte*>(&node) - inode_byte_offset());
     }
 
     static const T& data_from_node(const INode& node) noexcept
     {
-        return *std::bit_cast<const T*>(std::bit_cast<const u8*>(&node) - inode_offset);
+        return *std::bit_cast<const T*>(std::bit_cast<const byte*>(&node) - inode_byte_offset());
     }
 
     static INode& node_from_data(T& data) noexcept
     {
-        return *std::bit_cast<INode*>(std::bit_cast<u8*>(&data) + inode_offset);
+        return *std::bit_cast<INode*>(std::bit_cast<byte*>(&data) + inode_byte_offset());
     }
 
     static const INode& node_from_data(const T& data) noexcept
     {
-        return *std::bit_cast<const INode*>(std::bit_cast<const u8*>(&data) + inode_offset);
+        return *std::bit_cast<const INode*>(std::bit_cast<const byte*>(&data) +
+                                            inode_byte_offset());
     }
 
     /*

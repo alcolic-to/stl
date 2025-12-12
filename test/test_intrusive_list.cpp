@@ -9,14 +9,47 @@ struct Data {
 
     Data(int i) : m_value{i} {}
 
-    stl::INode m_node;
+    stl::INode<Data> m_node;
     int m_value;
+};
+
+class Base {
+public:
+    Base() = default;
+
+    Base(int i) : m_value{i} {}
+
+    virtual int value() { return m_value; }
+
+    virtual int value() const { return m_value; }
+
+public:
+    stl::INode<Base> m_node;
+
+private:
+    int m_value;
+
+public:
+    stl::INode<Base> m_node_after_members;
+};
+
+class Derived : public Base {
+public:
+    Derived() = default;
+
+    Derived(int i) : Base{i} {}
+
+    int value() override { return Base::value() + 1; }
+
+    int value() const override { return Base::value() + 1; }
+
+    stl::INode<Derived> m_node;
 };
 
 TEST(test_intrusive_list, sanity_test)
 {
     Data data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    stl::IList<Data, offsetof(Data, m_node)> list;
+    stl::IList<Data, &Data::m_node> list;
 
     ASSERT_TRUE(list.empty());
     ASSERT_EQ(list.size(), 0u);
@@ -82,7 +115,7 @@ TEST(test_intrusive_list, sanity_test)
 TEST(test_intrusive_list, erase_end_and_begin_erase)
 {
     Data data[3] = {10, 11, 12};
-    stl::IList<Data, offsetof(Data, m_node)> list;
+    stl::IList<Data, &Data::m_node> list;
 
     list.push_back(data[0]);
     list.push_back(data[1]);
@@ -106,7 +139,7 @@ TEST(test_intrusive_list, erase_end_and_begin_erase)
 TEST(test_intrusive_list, reuse_node_after_pop_and_reinsert)
 {
     Data d{42};
-    stl::IList<Data, offsetof(Data, m_node)> list;
+    stl::IList<Data, &Data::m_node> list;
 
     list.push_back(d);
     Data& p = list.pop_front();
@@ -126,7 +159,7 @@ TEST(test_intrusive_list, reuse_node_after_pop_and_reinsert)
 TEST(test_intrusive_list, const_iterator_equality)
 {
     Data data[2] = {7, 8};
-    stl::IList<Data, offsetof(Data, m_node)> list;
+    stl::IList<Data, &Data::m_node> list;
 
     list.push_back(data[0]);
     list.push_back(data[1]);
@@ -146,6 +179,204 @@ TEST(test_intrusive_list, const_iterator_equality)
     ++cit;
     ++cit;
     ASSERT_TRUE(cit == cend);
+}
+
+TEST(test_intrusive_list, inheritance_test_0)
+{
+    Derived data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    stl::IList<Base, &Base::m_node> list;
+
+    ASSERT_TRUE(list.empty());
+    ASSERT_EQ(list.size(), 0u);
+
+    list.push_back(data[0]);
+    list.push_back(data[1]);
+    list.push_back(data[2]);
+    list.push_back(data[3]);
+    list.push_back(data[4]);
+
+    ASSERT_FALSE(list.empty());
+    ASSERT_EQ(list.size(), 5u);
+    ASSERT_EQ(list.front().value(), 0 + 1);
+    ASSERT_EQ(list.back().value(), 4 + 1);
+
+    int expected = 0;
+    for (auto& d : list) {
+        ASSERT_EQ(d.value(), expected + 1);
+        ++expected;
+    }
+
+    expected = 0;
+    for (const auto& d : list) {
+        ASSERT_EQ(d.value(), expected + 1);
+        ++expected;
+    }
+
+    list.push_front(data[5]);
+    ASSERT_EQ(list.front().value(), 5 + 1);
+    ASSERT_EQ(list.size(), 6u);
+
+    Derived& pf = dynamic_cast<Derived&>(list.pop_front());
+    Derived& pb = dynamic_cast<Derived&>(list.pop_back());
+    ASSERT_EQ(pf.value(), 5 + 1);
+    ASSERT_EQ(pb.value(), 4 + 1);
+    ASSERT_EQ(list.size(), 4u);
+
+    auto it = list.begin();
+    while (it != list.end() && it->value() != 2 + 1)
+        ++it;
+
+    ASSERT_NE(it, list.end());
+    list.erase(it);
+    ASSERT_EQ(list.size(), 3u);
+
+    for (auto& d : list)
+        ASSERT_NE(d.value(), 2 + 1);
+
+    Derived& to_remove = data[1];
+    list.remove(to_remove);
+    ASSERT_EQ(list.size(), 2u);
+
+    ASSERT_EQ(to_remove.m_node.m_next, nullptr);
+    ASSERT_EQ(to_remove.m_node.m_prev, nullptr);
+
+    while (!list.empty())
+        (void)list.pop_front();
+
+    ASSERT_TRUE(list.empty());
+    ASSERT_EQ(list.size(), 0u);
+}
+
+TEST(test_intrusive_list, inheritance_test_1)
+{
+    Derived data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    stl::IList<Base, &Base::m_node_after_members> list;
+
+    ASSERT_TRUE(list.empty());
+    ASSERT_EQ(list.size(), 0u);
+
+    list.push_back(data[0]);
+    list.push_back(data[1]);
+    list.push_back(data[2]);
+    list.push_back(data[3]);
+    list.push_back(data[4]);
+
+    ASSERT_FALSE(list.empty());
+    ASSERT_EQ(list.size(), 5u);
+    ASSERT_EQ(list.front().value(), 0 + 1);
+    ASSERT_EQ(list.back().value(), 4 + 1);
+
+    int expected = 0;
+    for (auto& d : list) {
+        ASSERT_EQ(d.value(), expected + 1);
+        ++expected;
+    }
+
+    expected = 0;
+    for (const auto& d : list) {
+        ASSERT_EQ(d.value(), expected + 1);
+        ++expected;
+    }
+
+    list.push_front(data[5]);
+    ASSERT_EQ(list.front().value(), 5 + 1);
+    ASSERT_EQ(list.size(), 6u);
+
+    Derived& pf = dynamic_cast<Derived&>(list.pop_front());
+    Derived& pb = dynamic_cast<Derived&>(list.pop_back());
+    ASSERT_EQ(pf.value(), 5 + 1);
+    ASSERT_EQ(pb.value(), 4 + 1);
+    ASSERT_EQ(list.size(), 4u);
+
+    auto it = list.begin();
+    while (it != list.end() && it->value() != 2 + 1)
+        ++it;
+
+    ASSERT_NE(it, list.end());
+    list.erase(it);
+    ASSERT_EQ(list.size(), 3u);
+
+    for (auto& d : list)
+        ASSERT_NE(d.value(), 2 + 1);
+
+    Derived& to_remove = data[1];
+    list.remove(to_remove);
+    ASSERT_EQ(list.size(), 2u);
+
+    ASSERT_EQ(to_remove.m_node.m_next, nullptr);
+    ASSERT_EQ(to_remove.m_node.m_prev, nullptr);
+
+    while (!list.empty())
+        (void)list.pop_front();
+
+    ASSERT_TRUE(list.empty());
+    ASSERT_EQ(list.size(), 0u);
+}
+
+TEST(test_intrusive_list, inheritance_test_2)
+{
+    Derived data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    stl::IList<Derived, &Derived::m_node> list;
+
+    ASSERT_TRUE(list.empty());
+    ASSERT_EQ(list.size(), 0u);
+
+    list.push_back(data[0]);
+    list.push_back(data[1]);
+    list.push_back(data[2]);
+    list.push_back(data[3]);
+    list.push_back(data[4]);
+
+    ASSERT_FALSE(list.empty());
+    ASSERT_EQ(list.size(), 5u);
+    ASSERT_EQ(list.front().value(), 0 + 1);
+    ASSERT_EQ(list.back().value(), 4 + 1);
+
+    int expected = 0;
+    for (auto& d : list) {
+        ASSERT_EQ(d.value(), expected + 1);
+        ++expected;
+    }
+
+    expected = 0;
+    for (const auto& d : list) {
+        ASSERT_EQ(d.value(), expected + 1);
+        ++expected;
+    }
+
+    list.push_front(data[5]);
+    ASSERT_EQ(list.front().value(), 5 + 1);
+    ASSERT_EQ(list.size(), 6u);
+
+    Derived& pf = dynamic_cast<Derived&>(list.pop_front());
+    Derived& pb = dynamic_cast<Derived&>(list.pop_back());
+    ASSERT_EQ(pf.value(), 5 + 1);
+    ASSERT_EQ(pb.value(), 4 + 1);
+    ASSERT_EQ(list.size(), 4u);
+
+    auto it = list.begin();
+    while (it != list.end() && it->value() != 2 + 1)
+        ++it;
+
+    ASSERT_NE(it, list.end());
+    list.erase(it);
+    ASSERT_EQ(list.size(), 3u);
+
+    for (auto& d : list)
+        ASSERT_NE(d.value(), 2 + 1);
+
+    Derived& to_remove = data[1];
+    list.remove(to_remove);
+    ASSERT_EQ(list.size(), 2u);
+
+    ASSERT_EQ(to_remove.m_node.m_next, nullptr);
+    ASSERT_EQ(to_remove.m_node.m_prev, nullptr);
+
+    while (!list.empty())
+        (void)list.pop_front();
+
+    ASSERT_TRUE(list.empty());
+    ASSERT_EQ(list.size(), 0u);
 }
 
 // NOLINTEND

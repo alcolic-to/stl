@@ -24,11 +24,12 @@
 #include <vector>
 
 #include "intrusive_list.hpp"
+#include "types.hpp"
 
 using namespace stl;
 
 struct A {
-    INode m_node;
+    INode<A> m_node;
     std::string m_s;
 };
 
@@ -42,7 +43,7 @@ int main(int argc, char** argv)
     A a4{.m_s = "String 4"};
     A a5{.m_s = "String 5"};
 
-    IList<A, offsetof(A, m_node)> list;
+    IList<A, &A::m_node> list;
 
     list.push_back(a1);
     list.push_back(a2);
