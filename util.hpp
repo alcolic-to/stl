@@ -19,11 +19,12 @@
 #define STL_UTIL_HPP
 
 #include <chrono>
-#include <cstdint>
+#include <exception>
 #include <fstream>
 #include <iostream>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "types.hpp"
@@ -39,15 +40,52 @@
  * Please define all other macros that you wish to use and are not defined here.
  */
 #ifdef TRACY_ENABLE
+/* first tracy inlcude. */
 #include "tracy/Tracy.hpp"
+/* other tracy includes. */
+#include <common/TracyColor.hpp>
+#include <common/TracySystem.hpp>
+
 #define TZoneScoped ZoneScoped
+#define TZoneScopedC(x) ZoneScopedC(x)
 #define TTracyMessageL(x) TracyMessageL(x)
+#define TTracyMessageLC(x, y) TracyMessageLC(x, y)
 #else
 #define TZoneScoped NO_OP
+#define TZoneScopedC(x) NO_OP
 #define TTracyMessageL(x) NO_OP
+#define TTracyMessageLC(x, y) NO_OP
 #endif
 
 namespace stl {
+
+#ifdef TRACY_ENABLE
+
+/**
+ * Formats message for tracy.
+ * Tracy requires that messages lasts for the entire program execution. For that purpose, we will
+ * allocate message on a heap and return c string.
+ */
+template<class... Args>
+const char* tracy_msg(const std::format_string<Args...>& str, Args&&... args)
+{
+    return (new std::string{std::format(str, std::forward<Args>(args)...)})->c_str();
+}
+
+inline void set_tracy_worker(u64 worker_id, u64 scheduler_id)
+{
+    tracy::SetThreadNameWithHint(tracy_msg("S{:>3} W{:>3}", scheduler_id, worker_id),
+                                 static_cast<i32>(scheduler_id));
+}
+
+#else
+
+// NOLINTBEGIN
+inline void set_tracy_worker(u64 worker_id, u64 scheduler_id) {}
+
+// NOLINTEND
+
+#endif
 
 #ifdef __cpp_lib_hardware_interference_size
 constexpr usize cache_line_size = std::hardware_destructive_interference_size;
@@ -282,6 +320,49 @@ inline std::vector<char> file_to_vector(const std::string& path)
 {
     std::ifstream f{path, std::ios_base::binary};
     return std::vector<char>{std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
+}
+
+/**
+ * Invokes function with arguments inside try/catch block.
+ * Return type is std::optional with derived type from calling function, so user
+ * can check return value for nullopt (or with implicit bool operator).
+ * If function return type is void, std::optional will hold std::monostate.
+ *
+ * Example usage:
+ * std::vector<int> my_fn(int first, int second);
+ *
+ * auto r = invoke_noexcept(my_fn, arg1, arg2);
+ * if (!r)
+ *  ... failed - handle error ....
+ *
+ * or keep going if successful:
+ * std::vector<int>& output = *r;
+ * ...
+ *
+ * Also, you can invoke it with lambda:
+ * auto r = invoke_noexcept([&] { return my_fn(arg1, arg2); });
+ */
+template<class Fn, class... Args, class ReturnType = std::invoke_result_t<Fn, Args...>>
+std::optional<std::conditional_t<std::is_same_v<ReturnType, void>, std::monostate, ReturnType>>
+invoke_noexcept(Fn&& fn, Args&&... args) noexcept
+{
+    try {
+        if constexpr (std::is_same_v<ReturnType, void>) {
+            std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...);
+            return std::optional{std::monostate{}};
+        }
+        else {
+            return std::optional{std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...)};
+        }
+    }
+    catch (const std::exception& ex) {
+        std::cout << std::format("Exception: {}\n", ex.what());
+    }
+    catch (...) {
+        std::cout << "Unknown exception.\n";
+    }
+
+    return std::nullopt;
 }
 
 } // namespace stl

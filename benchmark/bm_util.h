@@ -6,9 +6,9 @@
 #define BENCHMARK_UTIL_H
 
 #include <atomic>
-#include <cstdint>
 #include <vector>
 
+#include "types.hpp"
 #include "util.hpp"
 
 namespace stl {

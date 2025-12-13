@@ -16,7 +16,7 @@ struct Data {
 
     Data(int i) : m_value{i} {}
 
-    INode m_node;
+    INode<Data> m_node;
     int m_value;
 };
 
@@ -75,7 +75,7 @@ static void BM_intrusive_list_push_back(benchmark::State& state)
     for (int i = 0; i < state.range(0); ++i)
         data.emplace_back(i);
 
-    IList<Data, offsetof(Data, m_node)> list;
+    IList<Data, &Data::m_node> list;
 
     for (auto _ : state) {
         for (int i = 0; i < state.range(0); ++i)
