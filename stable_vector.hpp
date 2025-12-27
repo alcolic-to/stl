@@ -88,31 +88,31 @@ public:
         return m_data[idx];
     }
 
-    T* data() { return m_data; }
+    T* data() noexcept { return m_data; }
 
-    const T* data() const { return m_data; }
+    const T* data() const noexcept { return m_data; }
 
-    T& front() { return m_data[0]; }
+    T& front() noexcept { return m_data[0]; }
 
-    const T& front() const { return m_data[0]; }
+    const T& front() const noexcept { return m_data[0]; }
 
-    T& back() { return m_data[m_size - 1]; }
+    T& back() noexcept { return m_data[m_size - 1]; }
 
-    const T& back() const { return m_data[m_size - 1]; }
+    const T& back() const noexcept { return m_data[m_size - 1]; }
 
-    auto begin() { return m_data; }
+    auto begin() noexcept { return m_data; }
 
-    auto end() { return m_data + m_size; }
+    auto end() noexcept { return m_data + m_size; }
 
-    auto begin() const { return m_data; }
+    auto begin() const noexcept { return m_data; }
 
-    auto end() const { return m_data + m_size; }
+    auto end() const noexcept { return m_data + m_size; }
 
-    [[nodiscard]] usize size() { return m_size; }
+    [[nodiscard]] usize size() const noexcept { return m_size; }
 
-    [[nodiscard]] usize capacity() { return m_capacity; }
+    [[nodiscard]] usize capacity() const noexcept { return m_capacity; }
 
-    [[nodiscard]] bool empty() { return size() == 0; }
+    [[nodiscard]] bool empty() const noexcept { return size() == 0; }
 
 private:
     T* m_data; // NOLINT
