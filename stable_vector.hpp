@@ -22,6 +22,7 @@
 #include <memory>
 #include <stdexcept>
 
+#include "alloc.hpp"
 #include "types.hpp"
 
 namespace stl {
@@ -37,16 +38,12 @@ namespace stl {
 template<class T>
 class StableVector {
 public:
-    explicit StableVector(usize capacity)
-        : m_data{static_cast<T*>(std::malloc(sizeof(T) * capacity))} // NOLINT
-        , m_capacity{capacity}
-    {
-    }
+    explicit StableVector(usize capacity) : m_data{allocate<T>(capacity)}, m_capacity{capacity} {}
 
     ~StableVector()
     {
         std::destroy_n(m_data, m_size);
-        std::free(m_data); // NOLINT
+        deallocate<T>(m_data, m_capacity);
     }
 
     /* TODO: Implement these. */

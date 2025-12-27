@@ -397,4 +397,34 @@ TEST(suffix_trie_tests, sanity_test_5)
     ASSERT_TRUE(r[0]->value() == file_path_2);
 }
 
+TEST(suffix_trie_tests, overaligned_object)
+{
+    class alignas(128) Overalign {
+    public:
+        operator void*() { return ptr; }
+
+        void* ptr;
+    };
+
+    AST<Overalign> ast;
+
+    std::vector<std::string> v1{"str1"};
+    std::vector<std::string> v2{"str2"};
+    std::vector<std::string> v3{"str3"};
+    std::vector<std::string> v4{"str4"};
+    std::vector<std::string> v5{"str5"};
+
+    ast.insert("my_vector1", &v1);
+    ast.insert("my_vector2", &v2);
+    ast.insert("my_vector3", &v3);
+    ast.insert("my_vector4", &v4);
+    ast.insert("my_vector5", &v5);
+
+    ASSERT_TRUE(ast.search("my_vector1")->value() == &v1);
+    ASSERT_TRUE(ast.search("my_vector2")->value() == &v2);
+    ASSERT_TRUE(ast.search("my_vector3")->value() == &v3);
+    ASSERT_TRUE(ast.search("my_vector4")->value() == &v4);
+    ASSERT_TRUE(ast.search("my_vector5")->value() == &v5);
+}
+
 // NOLINTEND

@@ -33,6 +33,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "alloc.hpp"
 #include "ptr_tag.hpp"
 #include "types.hpp"
 
@@ -199,7 +200,7 @@ public:
                 } // clang-format on
             }
             else {
-                delete leaf_ptr();
+                Leaf::delete_leaf(leaf_ptr());
             }
         }
 
@@ -862,9 +863,10 @@ public:
 template<class T>
 class Leaf final {
 private:
-    // Private constructor that initializes leaf. It constructs Leaf object in place on a allocated
-    // memory from new_leaf().
-    //
+    /**
+     * Private constructor that initializes leaf. It constructs Leaf object in place on a allocated
+     * memory from new_leaf().
+     */
     template<class... Args>
     Leaf(const Key& key, Args&&... args)
         : m_value{std::forward<Args>(args)...}
@@ -874,14 +876,23 @@ private:
     }
 
 public:
-    // Creates new leaf from provided key and value. It allocates memory big enough to fit value,
-    // key len and variable size key after which calls constructor on that memory.
-    //
+    /**
+     * Creates new leaf from provided key and value. It allocates memory big enough to fit value,
+     * key len and variable size key after which calls constructor on that memory.
+     * Note: Since all leaf members (except T) have default alignment, we must align Leaf
+     * alloc/dealloc on a alignof(T).
+     */
     template<class... Args>
     static Leaf* new_leaf(const Key& key, Args&&... args)
     {
-        return new (std::malloc(sizeof(Leaf) + key.size())) Leaf{key, std::forward<Args>(args)...};
+        return new (allocate_bytes(sizeof(Leaf) + key.size(), alignof(Leaf)))
+            Leaf{key, std::forward<Args>(args)...};
     }
+
+    /**
+     * Deletes leaf.
+     */
+    static void delete_leaf(Leaf* leaf_ptr) { deallocate_bytes(leaf_ptr, alignof(Leaf)); }
 
     const u8& operator[](usize idx) const noexcept
     {

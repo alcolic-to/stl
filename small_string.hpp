@@ -22,6 +22,7 @@
 #include <cstring>
 #include <string>
 
+#include "alloc.hpp"
 #include "ptr_tag.hpp"
 #include "types.hpp"
 
@@ -34,6 +35,8 @@ namespace stl {
  * If string is smaller than 7 bytes, data will be stored in pointer directly, otherwise m_data will
  * point to allocated string. We will set pointer tag (small or big) which indicates whether string
  * is small or big.
+ * TODO: Provide whether we should allocate bytes in chunks or with general purpose allocator. For
+ * now, we will always allocate in chunks, which might not be good for general purpose usage.
  */
 class SmallString {
     static constexpr usize small_limit = 6;
@@ -90,6 +93,8 @@ public:
      * It allocates memory from pools of 1MB. When chunk is exceeded, new chunk is requested with
      * malloc. Allocations are aligned on a std::max_align_t (usually 16) bytes.
      * Note that this function is not thread safe.
+     * Also, it is only used in finder for file names allocation. For general purpose case, it might
+     * not be good.
      */
     static void* allocate_buffer(usize size)
     {
@@ -103,7 +108,7 @@ public:
         usize aligned_size = (size + align_mask) & ~align_mask;
 
         if (m_memory == nullptr || m_allocated + aligned_size > chunk_size) {
-            m_memory = static_cast<u8*>(std::malloc(chunk_size));
+            m_memory = allocate<u8>(chunk_size);
             m_allocated = 0;
         }
 

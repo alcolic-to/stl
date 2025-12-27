@@ -35,6 +35,7 @@
 #include <utility>
 #include <vector>
 
+#include "alloc.hpp"
 #include "ptr_tag.hpp"
 
 namespace stl {
@@ -159,9 +160,11 @@ public:
     template<class... Args>
     static KeyValue* new_kv(const KeySpan& key, u32 data_idx, Args&&... args)
     {
-        return new (std::malloc(sizeof(KeyValue) + key.size()))
+        return new (allocate_bytes(sizeof(KeyValue) + key.size(), alignof(KeyValue)))
             KeyValue{key, data_idx, std::forward<Args>(args)...};
     }
+
+    static void delete_kv(KeyValue* kv_ptr) { deallocate_bytes(kv_ptr, alignof(KeyValue)); }
 
     template<class... Args>
     KeyValue(const KeySpan& key, u32 data_idx, Args&&... args)
@@ -251,9 +254,17 @@ class Leaf {
 public:
     using KeyRef = KeyRef<T>;
 
+    static Leaf* alloc_leaf(u32 kref_size)
+    {
+        return static_cast<Leaf*>(
+            allocate_bytes(sizeof(Leaf) + sizeof(KeyRef) * kref_size, alignof(Leaf)));
+    }
+
+    static void dealloc_leaf(Leaf* leaf) { deallocate_bytes(leaf, alignof(Leaf)); }
+
     static Leaf* new_leaf(u32 size = 2)
     {
-        Leaf* leaf = static_cast<Leaf*>(std::malloc(sizeof(Leaf) + sizeof(KeyRef) * size));
+        Leaf* leaf = alloc_leaf(size);
         leaf->m_size = 0;
         leaf->m_capacity = size;
         return leaf;
@@ -263,11 +274,11 @@ public:
     {
         Leaf* leaf = this;
         if (m_size == m_capacity) {
-            leaf = static_cast<Leaf*>(std::malloc(sizeof(Leaf) + sizeof(KeyRef) * m_capacity * 2));
+            leaf = alloc_leaf(m_capacity * 2);
             leaf->m_size = m_size;
             leaf->m_capacity = m_capacity * 2;
             std::memcpy(leaf->m_refs, m_refs, m_capacity * sizeof(KeyRef));
-            free(this);
+            dealloc_leaf(this);
         }
 
         leaf->m_refs[leaf->m_size++] = ref;
@@ -1096,29 +1107,24 @@ public:
 
     Data() : m_capacity{0}, m_kv{nullptr} {}
 
-    Data(u32 size)
-    {
-        m_kv = std::calloc(size, sizeof(KeyValue*));
-        m_capacity = size;
-    }
+    Data(u32 size) : m_capacity{size}, m_kv{alloc_kv(size)} {}
 
     ~Data()
     {
         for (u32 i = 0; i < m_capacity; ++i)
             if (m_kv[i])
-                std::free(m_kv[i]);
+                KeyValue::delete_kv(m_kv[i]);
     }
 
-    KeyValue** alloc(usize size)
-    {
-        return static_cast<KeyValue**>(std::calloc(size, sizeof(KeyValue*)));
-    }
+    KeyValue** alloc_kv(usize size) { return callocate<KeyValue*>(size); }
+
+    void free_kv(KeyValue** kv_ptr) { deallocate_bytes(kv_ptr); }
 
     template<class... Args>
     KeyRef insert(const KeySpan& key, Args&&... args)
     {
         if (m_kv == nullptr) {
-            m_kv = alloc(init_size);
+            m_kv = alloc_kv(init_size);
             m_capacity = init_size;
         }
 
@@ -1130,9 +1136,9 @@ public:
         }
 
         KeyValue** old = m_kv;
-        m_kv = alloc(m_capacity * 2);
+        m_kv = alloc_kv(m_capacity * 2);
         std::memcpy(m_kv, old, m_capacity * sizeof(KeyValue*));
-        free(old);
+        free_kv(old);
 
         m_kv[m_capacity] = KeyValue::new_kv(key, m_capacity, std::forward<Args>(args)...);
         KeyRef ref{m_capacity, 0};
@@ -1145,7 +1151,7 @@ public:
     {
         assert(idx < m_capacity);
 
-        delete m_kv[idx];
+        KeyValue::delete_kv(m_kv[idx]);
         m_kv[idx] = nullptr;
     }
 

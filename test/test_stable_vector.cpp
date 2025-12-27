@@ -13,6 +13,8 @@ using namespace stl;
 
 class Normal {
 public:
+    Normal(u32 val, std::string str) : v{val}, s{std::move(str)} {}
+
     u32 v{};
     std::string s;
 };
@@ -74,6 +76,49 @@ TEST(stable_vector, sanity_test)
 TEST(stable_vector, class_test)
 {
     StableVector<Non_copyable_nor_moveable> vec{5};
+    ASSERT_EQ(vec.size(), 0);
+    ASSERT_EQ(vec.capacity(), 5);
+
+    vec.emplace_back(1U, "String 1");
+    vec.emplace_back(2U, "String 2");
+    vec.emplace_back(3U, "String 3");
+    vec.emplace_back(4U, "String 4");
+    vec.emplace_back(5U, "String 5");
+
+    ASSERT_EQ(vec.size(), 5U);
+
+    u32 i = 1U;
+    for (auto& el : vec)
+        ASSERT_EQ(i++, el.v);
+
+    ASSERT_THROW(vec.emplace_back(6U, "String 6"), std::runtime_error);
+
+    ASSERT_EQ(vec.size(), 5);
+    ASSERT_EQ(vec.capacity(), 5);
+
+    vec.pop_back();
+
+    ASSERT_EQ(vec.size(), 4);
+    ASSERT_EQ(vec.capacity(), 5);
+
+    i = 1U;
+    for (auto& el : vec)
+        ASSERT_EQ(i++, el.v);
+
+    while (!vec.empty())
+        vec.pop_back();
+
+    ASSERT_EQ(vec.size(), 0);
+    ASSERT_EQ(vec.capacity(), 5);
+}
+
+TEST(stable_vector, overaligned_object)
+{
+    class alignas(128) Overalign : public Normal {
+        using Normal::Normal;
+    };
+
+    StableVector<Overalign> vec{5};
     ASSERT_EQ(vec.size(), 0);
     ASSERT_EQ(vec.capacity(), 5);
 
