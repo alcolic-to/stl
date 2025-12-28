@@ -22,7 +22,11 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace stl {
+/**
+ * Common types used in stl.
+ * Note: It is intentionally out of stl namespace, so that other projects can use it without stl::
+ * scope resolution.
+ */
 
 using i8 = std::int8_t;
 using i16 = std::int16_t;
@@ -43,7 +47,5 @@ using byte = std::byte;
 using iptr = std::intptr_t;
 using uptr = std::uintptr_t;
 using ptrdiff = std::ptrdiff_t;
-
-} // namespace stl
 
 #endif // STL_TYPES_HPP

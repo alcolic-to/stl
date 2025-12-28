@@ -29,6 +29,12 @@
 
 #include "types.hpp"
 
+/**
+ * Common util header used in stl.
+ * Note: It is intentionally out of stl namespace, so that other projects can use it without stl::
+ * scope resolution.
+ */
+
 // clang-format off
 #define NO_OP do {} while (0) // NOLINT
 // clang-format on
@@ -57,24 +63,22 @@
 #define TTracyMessageLC(x, y) NO_OP
 #endif
 
-namespace stl {
-
 #ifdef TRACY_ENABLE
 
 /**
- * Formats message for tracy.
- * Tracy requires that messages lasts for the entire program execution. For that purpose, we will
+ * Formats string for tracy.
+ * Tracy requires that strings lasts for the entire program execution. For that purpose, we will
  * allocate message on a heap and return c string.
  */
 template<class... Args>
-const char* tracy_msg(const std::format_string<Args...>& str, Args&&... args)
+const char* tracy_str(const std::format_string<Args...>& str, Args&&... args)
 {
     return (new std::string{std::format(str, std::forward<Args>(args)...)})->c_str();
 }
 
 inline void set_tracy_worker(u64 worker_id, u64 scheduler_id)
 {
-    tracy::SetThreadNameWithHint(tracy_msg("S{:>3} W{:>3}", scheduler_id, worker_id),
+    tracy::SetThreadNameWithHint(tracy_str("S{:>3} W{:>3}", scheduler_id, worker_id),
                                  static_cast<i32>(scheduler_id));
 }
 
@@ -189,8 +193,7 @@ public:
     [[nodiscard]] auto elapsed_units() const noexcept { return duration_cast<Unit>(elapsed()); }
 
     [[nodiscard]] std::string unit_name() const noexcept
-    {
-        // clang-format off
+    { // clang-format off
         if      constexpr (std::is_same_v<Unit, hours>)        return "hour(s)";
         else if constexpr (std::is_same_v<Unit, minutes>)      return "minute(s)";
         else if constexpr (std::is_same_v<Unit, seconds>)      return "second(s)";
@@ -198,8 +201,7 @@ public:
         else if constexpr (std::is_same_v<Unit, microseconds>) return "microsecond(s)";
         else if constexpr (std::is_same_v<Unit, nanoseconds>)  return "nanosecond(s)";
         else                                                   return "unknown unit";
-        // clang-format on
-    }
+    } // clang-format on
 
 private:
     std::string m_name;
@@ -364,7 +366,5 @@ invoke_noexcept(Fn&& fn, Args&&... args) noexcept
 
     return std::nullopt;
 }
-
-} // namespace stl
 
 #endif // STL_UTIL_HPP
