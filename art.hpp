@@ -25,6 +25,7 @@
 #define STL_ART_HPP
 
 #include <algorithm>
+#include <bit>
 #include <cassert>
 #include <cstring>
 #include <iostream>
@@ -868,11 +869,11 @@ private:
      * memory from new_leaf().
      */
     template<class... Args>
-    Leaf(const Key& key, Args&&... args)
+    Leaf(const Key& new_key, Args&&... args)
         : m_value{std::forward<Args>(args)...}
-        , m_key_size{key.size()}
+        , m_key_size{new_key.size()}
     {
-        key.copy_to(m_key, key.size());
+        new_key.copy_to(&key(), new_key.size());
     }
 
 public:
@@ -898,36 +899,56 @@ public:
         deallocate_bytes(leaf_ptr, alignof(Leaf));
     }
 
-    const u8& operator[](usize idx) const noexcept
-    {
-        assert(idx < m_key_size);
-        return m_key[idx];
-    }
+    const u8& operator[](usize idx) const noexcept { return key(idx); }
 
     usize key_size() const noexcept { return m_key_size; }
 
-    // Returns whether internal key and provided key matches. Since internal key already holds
-    // terminal byte at the end and key doesn't, we must memcmp all except last byte.
-    //
-    bool match(const Key& key) const noexcept
-    {
-        if (m_key_size != key.size())
-            return false;
+    u8* key_ptr() noexcept { return std::bit_cast<u8*>(this + 1); }
 
-        return !std::memcmp(m_key, key.m_data, m_key_size - 1);
+    const u8* key_ptr() const noexcept { return std::bit_cast<u8*>(this + 1); }
+
+    /**
+     * Returns u8 reference to key array at provided offset.
+     */
+    const u8& key(usize offset = 0) const noexcept
+    {
+        assert(offset < m_key_size);
+        return key_ptr()[offset];
     }
 
-    // Matches provided key as a prefix for this leaf. We need to match all characters from key
-    // except last terminal byte.
-    //
-    bool match_prefix(const Key& key) const noexcept
+    /**
+     * Returns u8 reference to key array at provided offset.
+     */
+    u8& key(usize offset = 0) noexcept
     {
-        const usize cmp_size = key.size() - 1;
+        assert(offset < m_key_size);
+        return key_ptr()[offset];
+    }
+
+    /**
+     * Returns whether internal key and provided key matches. Since internal key already holds
+     * terminal byte at the end and key doesn't, we must memcmp all except last byte.
+     */
+    bool match(const Key& other) const noexcept
+    {
+        if (m_key_size != other.size())
+            return false;
+
+        return !std::memcmp(&key(), other.m_data, m_key_size - 1);
+    }
+
+    /**
+     * Matches provided key as a prefix for this leaf. We need to match all characters from key
+     * except last terminal byte.
+     */
+    bool match_prefix(const Key& other) const noexcept
+    {
+        const usize cmp_size = other.size() - 1;
 
         if (cmp_size > m_key_size)
             return false;
 
-        return !std::memcmp(m_key, key.m_data, std::min(m_key_size, cmp_size));
+        return !std::memcmp(&key(), other.m_data, std::min(m_key_size, cmp_size));
     }
 
     const T& value() const noexcept { return m_value; }
@@ -936,18 +957,18 @@ public:
 
     std::string key_to_string() const noexcept
     {
-        return std::string(m_key, m_key + m_key_size - 1);
+        return std::string(&key(), &key() + m_key_size - 1);
     }
 
     std::string_view key_to_string_view() const noexcept
     {
-        return std::string_view{(const char*)m_key, m_key_size - 1};
+        return std::string_view{(const char*)&key(), m_key_size - 1};
     }
 
 private:
     T m_value;
     usize m_key_size;
-    u8 m_key[];
+    /* u8 m_key[]; variable size u8 array */
 };
 
 /**

@@ -24,6 +24,7 @@
 #define AST_HPP
 
 #include <algorithm>
+#include <bit>
 #include <cassert>
 #include <cstddef>
 #include <cstring>
@@ -86,17 +87,18 @@ u32 hdrlen(Type len)
     return std::min(static_cast<u32>(len), max_prefix_len);
 }
 
-// Helper class that wraps key used in art.
-// Data is not physically copied on construction to increase performance. This object just holds
-// pointer to data beeing manipulated, it's size and current depth used for single value comparison
-// on each traversed level. Depth is incresed by 1 for every new level and value at that depth can
-// be accessed with operator[].
-//
-// In order to have multiple entries where one entry is prefix of another, we will insert invisible
-// 0 at the end of a key, and increase it's size by 1. That way, all keys will have unique path
-// through the tree. Typical additional character is $ for suffix trees, but we will use 0 for
-// general purpose.
-//
+/*
+ * Helper class that wraps key used in ast.
+ * Data is not physically copied on construction to increase performance. This object just holds
+ * pointer to data beeing manipulated, it's size and current depth used for single value comparison
+ * on each traversed level. Depth is incresed by 1 for every new level and value at that depth can
+ * be accessed with operator[].
+ *
+ * In order to have multiple entries where one entry is prefix of another, we will insert invisible
+ * 0 at the end of a key, and increase it's size by 1. That way, all keys will have unique path
+ * through the tree. Typical additional character is $ for suffix trees, but we will use 0 for
+ * general purpose.
+ */
 class KeySpan {
 public:
     template<class T>
@@ -134,10 +136,11 @@ public:
         return !std::memcmp(m_data, other.m_data, other.size() - 1);
     }
 
-    // Copy key to destination buffer with size len. We must manually copy last 0 byte, since we
-    // don't hold that value in our buffer. User must assure that buffer can hold at least len
-    // bytes.
-    //
+    /**
+     * Copy key to destination buffer with size len. We must manually copy last 0 byte, since we
+     * don't hold that value in our buffer. User must assure that buffer can hold at least len
+     * bytes.
+     */
     void copy_to(u8* dest, usize len) const noexcept
     {
         std::memcpy(dest, m_data, std::min(len, m_size - 1));
@@ -171,12 +174,12 @@ public:
     }
 
     template<class... Args>
-    KeyValue(const KeySpan& key, u32 data_idx, Args&&... args)
+    KeyValue(const KeySpan& key_span, u32 data_idx, Args&&... args)
         : m_value{std::forward<Args>(args)...}
         , m_data_idx{data_idx}
-        , m_key_size{static_cast<u32>(key.size())}
+        , m_key_size{static_cast<u32>(key_span.size())}
     {
-        key.copy_to(m_key, m_key_size);
+        key_span.copy_to(key(), m_key_size);
     }
 
     constexpr bool empty() const noexcept { return m_key_size == 0; }
@@ -185,7 +188,9 @@ public:
 
     constexpr u32 size() const noexcept { return m_key_size; }
 
-    constexpr const u8* key() const noexcept { return m_key; }
+    constexpr const u8* key() const noexcept { return std::bit_cast<u8*>(this + 1); }
+
+    constexpr u8* key() noexcept { return std::bit_cast<u8*>(this + 1); }
 
     constexpr const T& value() const noexcept { return m_value; }
 
@@ -193,7 +198,7 @@ public:
 
     constexpr const std::string str() const noexcept
     {
-        return std::string(m_key, m_key + m_key_size - 1);
+        return std::string(key(), key() + m_key_size - 1);
     }
 
     constexpr const usize size_in_bytes() const noexcept { return sizeof(KeyValue) + m_key_size; }
@@ -202,7 +207,7 @@ private:
     T m_value;
     u32 m_data_idx;
     u32 m_key_size;
-    u8 m_key[];
+    /* u8 m_key[]; variable size u8 array */
 };
 
 /**
@@ -248,10 +253,11 @@ private:
 static_assert(sizeof(KeyRef<void>) == sizeof(void*));
 
 /**
- * Leaf holding list of KeyRefs. Each reference is used to access original key at the specific
- * offset. This list act as vector: as soon as it is populated, we will double the storage and copy
- * an existing elements. Note that whole AST functionalities depends on elements beeing packed
- * without empty slots and preserving the same index.
+ * Leaf holding list of KeyRefs.
+ * Each reference is used to access original key at the specific offset. This list act as vector: as
+ * soon as it is populated, we will double the storage and copy an existing elements. Note that
+ * whole AST functionalities depends on elements beeing packed without empty slots and preserving
+ * the same index.
  */
 template<class T>
 class Leaf {
@@ -281,32 +287,52 @@ public:
             leaf = alloc_leaf(m_capacity * 2);
             leaf->m_size = m_size;
             leaf->m_capacity = m_capacity * 2;
-            std::memcpy(leaf->m_refs, m_refs, m_capacity * sizeof(KeyRef));
+            std::memcpy(&leaf->refs(), &refs(), m_capacity * sizeof(KeyRef));
             dealloc_leaf(this);
         }
 
-        leaf->m_refs[leaf->m_size++] = ref;
+        leaf->refs(leaf->m_size++) = ref;
         return leaf;
     }
 
-    [[nodiscard]] KeyRef next_key_ref() { return m_refs[0]; }
+    const KeyRef* refs_ptr() const noexcept { return std::bit_cast<KeyRef*>(this + 1); }
 
-    KeyRef operator[](u32 idx) { return m_refs[idx]; }
+    KeyRef* refs_ptr() noexcept { return std::bit_cast<KeyRef*>(this + 1); }
+
+    /**
+     * Returns key reference at specified offset.
+     */
+    KeyRef& refs(usize offset = 0) noexcept
+    {
+        assert(offset < m_size);
+        return refs_ptr()[offset];
+    }
+
+    /**
+     * Returns key reference at specified offset.
+     */
+    const KeyRef& refs(usize offset = 0) const noexcept
+    {
+        assert(offset < m_size);
+        return refs_ptr()[offset];
+    }
+
+    [[nodiscard]] const KeyRef& next_key_ref() { return refs(0); }
 
     usize size_in_bytes() const noexcept { return sizeof(Leaf) + m_capacity * sizeof(KeyRef); }
 
     void remove(u32 idx) noexcept
     {
-        assert(idx < m_capacity);
-        for (; idx < m_capacity - 1; ++idx)
-            m_refs[idx] = m_refs[idx + 1];
+        assert(idx < m_size);
+        for (; idx < m_size - 1; ++idx)
+            refs(idx) = refs(idx + 1);
 
         --m_size;
     }
 
     u32 m_size;
     u32 m_capacity;
-    KeyRef m_refs[];
+    /* KeyRef m_refs[]; variable size KeyRef array. */
 };
 
 /**
@@ -1854,17 +1880,17 @@ private:
     {
         assert(leaf->m_size > 1);
 
-        KeySpan leaf_key = m_data[leaf->m_refs[0]];
+        KeySpan leaf_key = m_data[leaf->refs(0)];
         if (key != leaf_key)
             return;
 
         for (u32 i = 0; i < leaf->m_size; ++i) {
-            if (leaf->m_refs[i].idx() == data_idx) {
+            if (leaf->refs(i).idx() == data_idx) {
                 leaf->remove(i);
                 if (leaf->m_size == 1) {
                     Node* node = entry.node_ptr();
                     entry_ptr& node_entry = *node->find_child(key[depth]);
-                    node_entry.reset(leaf->m_refs[0]); // Delete leaf and insert ref in slot.
+                    node_entry.reset(leaf->refs(0)); // Delete leaf and insert ref in slot.
                 }
 
                 return;
@@ -1874,11 +1900,12 @@ private:
         assert(!"Missing suffix link (reference).");
     }
 
-    // Delete: The implementation of deletion is symmetrical to
-    // insertion.The leaf is removed from an inner node,
-    // which is shrunk if necessary. If that node now has only one child,
-    // it is replaced by its child and the compressed path is adjusted.
-    //
+    /**
+     * Delete: The implementation of deletion is symmetrical to
+     * insertion.The leaf is removed from an inner node,
+     * which is shrunk if necessary. If that node now has only one child,
+     * it is replaced by its child and the compressed path is adjusted.
+     */
     void erase(entry_ptr& entry, const KeySpan& key, usize depth, u32 data_idx) noexcept
     {
         Node* node = entry.node_ptr();
@@ -1929,7 +1956,7 @@ private:
 
         if (entry.leaf()) {
             Leaf* leaf = entry.leaf_ptr();
-            KeySpan leaf_key = m_data[leaf->m_refs[0]];
+            KeySpan leaf_key = m_data[leaf->refs(0)];
             if (key != leaf_key)
                 return nullptr;
 
@@ -1938,8 +1965,8 @@ private:
              * first char, because that is the whole string we are searching).
              */
             for (u32 i = 0; i < leaf->m_size; ++i)
-                if (leaf->m_refs[i].offset() == 0)
-                    return m_data[leaf->m_refs[i].idx()];
+                if (leaf->refs(i).offset() == 0)
+                    return m_data[leaf->refs(i).idx()];
 
             return nullptr;
         }
@@ -1988,10 +2015,10 @@ private:
 
         if (entry.leaf()) {
             Leaf* leaf = entry.leaf_ptr();
-            KeySpan leaf_key = m_data[leaf->m_refs[0]];
+            KeySpan leaf_key = m_data[leaf->refs(0)];
             if (leaf_key.match_prefix(prefix))
                 for (u32 i = 0; i < leaf->m_size; ++i)
-                    result.insert(m_data[leaf->m_refs[i].idx()]);
+                    result.insert(m_data[leaf->refs(i).idx()]);
 
             return;
         }
@@ -2010,7 +2037,7 @@ private:
                 if (ent.leaf()) {
                     Leaf* leaf = ent.leaf_ptr();
                     for (u32 i = 0; i < leaf->m_size; ++i) {
-                        result.insert(m_data[leaf->m_refs[i].idx()]);
+                        result.insert(m_data[leaf->refs(i).idx()]);
                         if (result.size() >= limit) // Limits number of iterations.
                             return false;
                     }
@@ -2059,10 +2086,10 @@ private:
 
         if (entry.leaf()) {
             Leaf* leaf = entry.leaf_ptr();
-            KeySpan leaf_key = m_data[leaf->m_refs[0]];
+            KeySpan leaf_key = m_data[leaf->refs(0)];
             if (leaf_key == suffix)
                 for (u32 i = 0; i < leaf->m_size; ++i)
-                    result.push_back(m_data[leaf->m_refs[i].idx()]);
+                    result.push_back(m_data[leaf->refs(i).idx()]);
 
             return;
         }
@@ -2146,10 +2173,10 @@ private:
 
         if (entry.leaf()) {
             Leaf* leaf = entry.leaf_ptr();
-            KeySpan leaf_key = m_data[leaf->m_refs[0]];
+            KeySpan leaf_key = m_data[leaf->refs(0)];
             if (leaf_key.match_prefix(prefix)) {
                 for (u32 i = 0; i < leaf->m_size; ++i) {
-                    auto& v = *m_data[leaf->m_refs[i].idx()];
+                    auto& v = *m_data[leaf->refs(i).idx()];
                     if (pred(v))
                         result.insert();
                 }
@@ -2175,9 +2202,9 @@ private:
                 if (ent.leaf()) {
                     Leaf* leaf = ent.leaf_ptr();
                     for (u32 i = 0; i < leaf->m_size; ++i) {
-                        auto& v = *m_data[leaf->m_refs[i].idx()];
+                        auto& v = *m_data[leaf->refs(i).idx()];
                         if (pred(v)) {
-                            result.insert(*m_data[leaf->m_refs[i].idx()]);
+                            result.insert(*m_data[leaf->refs(i).idx()]);
                             if (result.size() >= limit) // Limits number of iterations.
                                 return false;
                         }
@@ -2223,10 +2250,10 @@ private:
 
         if (entry.leaf()) {
             Leaf* leaf = entry.leaf_ptr();
-            KeySpan leaf_key = m_data[leaf->m_refs[0]];
+            KeySpan leaf_key = m_data[leaf->refs(0)];
             if (leaf_key.match_prefix(prefix)) {
                 for (u32 i = 0; i < leaf->m_size; ++i)
-                    if (!pred(m_data[leaf->m_refs[i].idx()]->value()))
+                    if (!pred(m_data[leaf->refs(i).idx()]->value()))
                         return;
             }
 
@@ -2248,7 +2275,7 @@ private:
                 if (ent.leaf()) {
                     Leaf* leaf = ent.leaf_ptr();
                     for (u32 i = 0; i < leaf->m_size; ++i) {
-                        auto& v = m_data[leaf->m_refs[i].idx()]->value();
+                        auto& v = m_data[leaf->refs(i).idx()]->value();
                         if (!pred(v))
                             return false;
                     }
