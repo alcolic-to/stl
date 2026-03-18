@@ -11,6 +11,32 @@
 
 using namespace stl;
 
+TEST(suffix_trie_tests, sanity_test_0)
+{
+    static u32 c = 0;
+
+    class SomeType {
+    public:
+        SomeType() { ++c; }
+
+        ~SomeType() { --c; }
+    };
+
+    {
+        AST<SomeType> art;
+        art.insert("key_1");
+        ASSERT_TRUE(c == 1);
+
+        art.insert("key_2");
+        ASSERT_TRUE(c == 2);
+
+        art.erase("key_1");
+        ASSERT_TRUE(c == 1);
+    }
+
+    ASSERT_TRUE(c == 0);
+}
+
 TEST(suffix_trie_tests, sanity_test_1)
 {
     AST<std::string> ast;

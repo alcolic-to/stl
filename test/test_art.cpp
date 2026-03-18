@@ -75,7 +75,33 @@ void test_crud(ART<T>& art, Keys keys, Keys valid_keys, Keys invalid_keys)
     test_erase(art, keys, valid_keys, invalid_keys);
 }
 
-TEST(art_tests, sanity_test)
+TEST(art_tests, sanity_test_0)
+{
+    static u32 c = 0;
+
+    class SomeType {
+    public:
+        SomeType() { ++c; }
+
+        ~SomeType() { --c; }
+    };
+
+    {
+        ART<SomeType> art;
+        art.insert("key_1");
+        ASSERT_TRUE(c == 1);
+
+        art.insert("key_2");
+        ASSERT_TRUE(c == 2);
+
+        art.erase("key_1");
+        ASSERT_TRUE(c == 1);
+    }
+
+    ASSERT_TRUE(c == 0);
+}
+
+TEST(art_tests, sanity_test_1)
 {
     ART art;
 

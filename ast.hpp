@@ -164,7 +164,11 @@ public:
             KeyValue{key, data_idx, std::forward<Args>(args)...};
     }
 
-    static void delete_kv(KeyValue* kv_ptr) { deallocate_bytes(kv_ptr, alignof(KeyValue)); }
+    static void delete_kv(KeyValue* kv_ptr)
+    {
+        kv_ptr->m_value.~T();
+        deallocate_bytes(kv_ptr, alignof(KeyValue));
+    }
 
     template<class... Args>
     KeyValue(const KeySpan& key, u32 data_idx, Args&&... args)

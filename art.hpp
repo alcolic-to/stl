@@ -892,7 +892,11 @@ public:
     /**
      * Deletes leaf.
      */
-    static void delete_leaf(Leaf* leaf_ptr) { deallocate_bytes(leaf_ptr, alignof(Leaf)); }
+    static void delete_leaf(Leaf* leaf_ptr)
+    {
+        leaf_ptr->m_value.~T();
+        deallocate_bytes(leaf_ptr, alignof(Leaf));
+    }
 
     const u8& operator[](usize idx) const noexcept
     {
