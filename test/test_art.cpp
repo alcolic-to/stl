@@ -340,8 +340,8 @@ TEST(art_tests, growing_nodes_2)
     keys.push_back(std::string(buf, buf + buf_size) + long_str);
     keys.push_back(long_str + std::string(buf, buf + buf_size));
 
-    for (i32 i = 0; i < buf_size; ++i) {
-        for (i32 j = 2; j < 64; ++j) {
+    for (usize i = 0; i < buf_size; ++i) {
+        for (usize j = 2; j < 64; ++j) {
             buf[i] = j;
             keys.push_back(std::string(buf, buf + buf_size));
             keys.push_back(std::string(buf, buf + buf_size) + long_str);
@@ -362,8 +362,8 @@ TEST(art_tests, different_key_sizes)
 
     std::vector<std::string> keys;
 
-    for (i32 i = 0; i < key_max_size; ++i) {
-        for (i32 j = 1; j < 32; ++j) {
+    for (usize i = 0; i < key_max_size; ++i) {
+        for (usize j = 1; j < 32; ++j) {
             buff[i] = j;
             keys.push_back(std::string(buff, buff + i + 1));
         }
@@ -383,8 +383,8 @@ TEST(art_tests, different_key_sizes_big)
 
     std::vector<std::string> keys;
 
-    for (i32 i = 0; i < key_max_size; ++i) {
-        for (i32 j = 1; j < 256; ++j) {
+    for (usize i = 0; i < key_max_size; ++i) {
+        for (usize j = 1; j < 256; ++j) {
             buff[i] = j;
             keys.push_back(std::string(buff, buff + i + 1));
         }

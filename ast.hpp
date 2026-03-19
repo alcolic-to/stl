@@ -201,7 +201,7 @@ public:
         return std::string(key(), key() + m_key_size - 1);
     }
 
-    constexpr const usize size_in_bytes() const noexcept { return sizeof(KeyValue) + m_key_size; }
+    constexpr usize size_in_bytes() const noexcept { return sizeof(KeyValue) + m_key_size; }
 
 private:
     T m_value;
@@ -1422,7 +1422,7 @@ public:
     usize nodes_count() const noexcept
     {
         usize c = 0;
-        for_each_node([&](const Node* node) { ++c; });
+        for_each_node([&]([[maybe_unused]] const Node* node) { ++c; });
 
         return c;
     }
@@ -1430,7 +1430,7 @@ public:
     usize leaves_count() const noexcept
     {
         usize c = 0;
-        for_each_leaf([&](const Leaf* leaf) { ++c; });
+        for_each_leaf([&]([[maybe_unused]] const Leaf* leaf) { ++c; });
 
         return c;
     }
@@ -1858,7 +1858,7 @@ private:
     }
 
     void erase_ref(entry_ptr& entry, KeyRef ref, const KeySpan& key, usize depth,
-                   u32 data_idx) noexcept
+                   [[maybe_unused]] u32 data_idx) noexcept
     {
         assert(ref.idx() == data_idx);
 
@@ -2151,7 +2151,7 @@ private:
             return {};
 
         std::unordered_set<const KeyValue*> result;
-        search_prefix_if(m_root, prefix, 0, result, limit);
+        search_prefix_if(m_root, prefix, 0, result, pred, limit);
 
         return std::vector<KeyValue*>{result.begin(), result.end()};
     }

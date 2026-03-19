@@ -1166,7 +1166,7 @@ public:
     usize nodes_count() const noexcept
     {
         usize c = 0;
-        for_each_node([&](const Node* node) { ++c; });
+        for_each_node([&]([[maybe_unused]] const Node* node) { ++c; });
 
         return c;
     }
@@ -1174,7 +1174,7 @@ public:
     usize leaves_count() const noexcept
     {
         usize c = 0;
-        for_each_leaf([&](const Leaf* leaf) { ++c; });
+        for_each_leaf([&]([[maybe_unused]] const Leaf* leaf) { ++c; });
 
         return c;
     }
@@ -1188,7 +1188,7 @@ public:
             case Node16_t:  size += sizeof(Node16);  break;
             case Node48_t:  size += sizeof(Node48);  break;
             case Node256_t: size += sizeof(Node256); break;
-            default: assert(false);                       break;
+            default: assert(false);                  break;
             } // clang-format on
         });
 
